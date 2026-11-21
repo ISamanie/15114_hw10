@@ -1,36 +1,41 @@
 {
   "expo": {
-    "name": "workout-app",
+    "name": "Workout Tracker",
     "slug": "workout-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/workout-icon.png",
     "scheme": "workoutapp",
-    "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
+    "userInterfaceStyle": "light",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#01875F",
+        "foregroundImage": "./assets/images/workout-mark.png",
+        "monochromeImage": "./assets/images/workout-mark.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "server",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/workout-icon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#01875F",
+          "image": "./assets/images/workout-mark.png",
+          "imageWidth": 142
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Workout Tracker to choose an exercise thumbnail from your photos.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],

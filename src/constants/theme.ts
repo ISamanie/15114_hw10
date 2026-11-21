@@ -63,3 +63,12 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+export const Palette = {
+  canvas: '#FFFFFF', surface: '#F8F9FA', accent: '#01875F', accentText: '#006448',
+  mint: '#E6F4EA', text: '#202124', muted: '#5F6368', border: '#DADCE0',
+  darkGreen: '#103E31', lightGreen: '#B7ECD1', blueTint: '#EAF1FC', blueInk: '#35578A',
+  violetTint: '#F0EBFA', violetInk: '#65508A', danger: '#AA3026', dangerTint: '#FCEDEA',
+} as const;
+
+export const Radius = { chip: 8, thumbnail: 12, card: 16, pill: 24 } as const;
