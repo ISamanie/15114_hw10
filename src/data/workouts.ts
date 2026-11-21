@@ -51,7 +51,6 @@ export interface WorkoutData {
   sessions: WorkoutSession[];
   workoutExercises: WorkoutExercise[];
   sets: SetEntry[];
-  recentExerciseIds: string[];
   preferredUnit: WeightUnit;
 }
 

@@ -1,13 +1,16 @@
 import { randomUUID } from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
-import { launchImageLibraryAsync, type ImagePickerAsset } from 'expo-image-picker';
-import { router, useNavigation } from 'expo-router';
-import { useRef, useState } from 'react';
+import { launchImageLibraryAsync } from 'expo-image-picker';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import Storage from 'expo-sqlite/kv-store';
+import { use, useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ExerciseThumbnail } from '@/components/exercise-row';
+import { RecoveredExerciseDraft } from '@/components/exercise-draft-context';
 import { Action, Chips, ErrorText, Screen, ui } from '@/components/tracker-ui';
 import { Palette, Radius } from '@/constants/theme';
+import { exerciseDraftKey, type ExerciseDraft, type ExercisePhoto } from '@/data/exercise-draft';
 import { exerciseIcons, type ExerciseIcon } from '@/data/exercises';
 import { useWorkouts } from '@/data/workout-store';
 import { equipmentLabels, equipmentTypes, type EquipmentType } from '@/data/workouts';
@@ -16,32 +19,53 @@ const options = equipmentTypes.map((value) => ({ value, label: equipmentLabels[v
 const icons = Object.entries(exerciseIcons) as [ExerciseIcon, string][];
 
 export default function CreateExerciseScreen() {
+  const { restore } = useLocalSearchParams<{ restore?: string }>();
+  const recovered = use(RecoveredExerciseDraft);
+  const draft = recovered && recovered.id === restore ? recovered : null;
+  return <CreateExerciseForm key={draft?.id} draft={draft} />;
+}
+
+function CreateExerciseForm({ draft }: { draft: ExerciseDraft | null }) {
   const { addExercise } = useWorkouts();
   const navigation = useNavigation();
-  const [id] = useState(randomUUID);
-  const [name, setName] = useState('');
-  const [equipment, setEquipment] = useState<EquipmentType>('free_weight');
-  const [muscle, setMuscle] = useState('');
-  const [description, setDescription] = useState('');
-  const [icon, setIcon] = useState<ExerciseIcon>('dumbbell');
-  const [photo, setPhoto] = useState<ImagePickerAsset>();
+  const [id] = useState(() => draft?.id ?? randomUUID());
+  const [name, setName] = useState(draft?.name ?? '');
+  const [equipment, setEquipment] = useState<EquipmentType>(draft?.equipment ?? 'free_weight');
+  const [muscle, setMuscle] = useState(draft?.muscle ?? '');
+  const [description, setDescription] = useState(draft?.description ?? '');
+  const [icon, setIcon] = useState<ExerciseIcon>(draft?.icon ?? 'dumbbell');
+  const [photo, setPhoto] = useState<ExercisePhoto | undefined>(draft?.photo);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(draft?.photoError ?? '');
   const busy = useRef(false);
+
+  useEffect(() => {
+    if (draft) void Storage.removeItem(exerciseDraftKey).catch(() => undefined);
+  }, [draft]);
 
   async function choosePhoto() {
     if (busy.current) return;
     busy.current = true;
     setPicking(true);
     setError('');
+    let checkpointSaved = false;
     try {
+      if (process.env.EXPO_OS === 'android') {
+        const checkpoint: ExerciseDraft = { id, name, equipment, muscle, description, icon, photo };
+        await Storage.setItem(exerciseDraftKey, JSON.stringify(checkpoint));
+        checkpointSaved = true;
+      }
       const result = await launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75 });
-      if (!result.canceled) setPhoto(result.assets[0]);
+      if (!result.canceled) {
+        const { uri, fileName } = result.assets[0];
+        setPhoto({ uri, fileName });
+      }
     } catch {
       setError('Couldn’t open the photo library. Try again or choose an icon.');
     } finally {
+      if (checkpointSaved) await Storage.removeItem(exerciseDraftKey).catch(() => undefined);
       busy.current = false;
       setPicking(false);
     }
@@ -76,7 +100,8 @@ export default function CreateExerciseScreen() {
       setSaving(false);
     }
     if (navigation.isFocused()) {
-      if (router.canGoBack()) router.back();
+      if (draft) router.dismissTo('/data');
+      else if (router.canGoBack()) router.back();
       else router.replace('/data');
     }
   }

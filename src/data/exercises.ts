@@ -50,5 +50,5 @@ const builtIns: Exercise[] = catalog.map(([name, equipmentType, muscleGroup, ico
 }));
 
 export function initialData(): WorkoutData {
-  return { exercises: builtIns, sessions: [], workoutExercises: [], sets: [], recentExerciseIds: [], preferredUnit: 'lb' };
+  return { exercises: builtIns, sessions: [], workoutExercises: [], sets: [], preferredUnit: 'lb' };
 }

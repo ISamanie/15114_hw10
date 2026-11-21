@@ -11,13 +11,13 @@ import { equipmentLabels, equipmentTypes, filterExercises, type EquipmentType, t
 const categories = [{ value: 'all' as const, label: 'All' }, ...equipmentTypes.map((value) => ({ value, label: equipmentLabels[value] }))];
 
 export default function DataScreen() {
-  const { data, visitExercise } = useWorkouts();
+  const { data, recentExerciseIds, visitExercise } = useWorkouts();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<EquipmentType | 'all'>('all');
   const { bottom } = useSafeAreaInsets();
   const matches = useMemo(() => filterExercises(data?.exercises ?? [], query, category === 'all' ? undefined : category)
     .sort((a, b) => a.name.localeCompare(b.name)), [data?.exercises, category, query]);
-  const recent = query.trim() ? [] : (data?.recentExerciseIds ?? []).flatMap((id) => {
+  const recent = query.trim() ? [] : recentExerciseIds.flatMap((id) => {
     const exercise = matches.find((item) => item.id === id);
     return exercise ? [exercise] : [];
   });
