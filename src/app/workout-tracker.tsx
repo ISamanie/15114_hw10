@@ -11,7 +11,7 @@ import { Action, Chips, Empty, ErrorText, Screen, SearchField, ui } from '@/comp
 import { WorkoutBlock } from '@/components/workout-block';
 import { MaxContentWidth, Palette, Radius } from '@/constants/theme';
 import { useWorkouts } from '@/data/workout-store';
-import { buildWorkout, dateKey, filterExercises, formatDuration, getWorkout, inUnit, parseDraftSet,
+import { buildWorkout, dateKey, filterExercises, formatDuration, formatWeightInput, getWorkout, parseDraftSet,
   type DraftExercise, type DraftSet, type Exercise, type WeightUnit } from '@/data/workouts';
 
 const units = [{ value: 'lb', label: 'lb' }, { value: 'kg', label: 'kg' }] as const;
@@ -51,7 +51,7 @@ export default function WorkoutTrackerScreen() {
       exerciseId: exercise.exerciseId,
       sets: workout.sets.filter((set) => set.workoutExerciseId === exercise.id)
         .sort((a, b) => a.setNumber - b.setNumber).map((set) => ({
-          id: set.id, weight: String(Number(inUnit(set.weight, previous.unit).toPrecision(12))), reps: String(set.reps), done: true,
+          id: set.id, weight: formatWeightInput(set.weight, previous.unit), reps: String(set.reps), done: true,
         })),
     }));
   });

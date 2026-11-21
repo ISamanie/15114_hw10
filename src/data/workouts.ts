@@ -79,9 +79,14 @@ export const equipmentTypes = Object.keys(equipmentLabels) as EquipmentType[];
 // Store all weights and volumes in kilograms to compare sessions logged in different units.
 const kgPerPound = 0.45359237;
 const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const weightInputFormat = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 12, useGrouping: false });
 
 export function inUnit(kg: number, unit: WeightUnit) {
   return unit === 'lb' ? kg / kgPerPound : kg;
+}
+
+export function formatWeightInput(kg: number, unit: WeightUnit) {
+  return weightInputFormat.format(inUnit(kg, unit));
 }
 
 export function formatNumber(value: number) {
@@ -197,27 +202,33 @@ export function totalReps(sets: SetEntry[]) {
 }
 
 export function bestSet(sets: SetEntry[]) {
+  const maxWeight = sets.reduce((max, set) => Math.max(max, set.weight), 0);
+  // Equivalent weights converted from pounds can differ by a few floating-point bits.
+  const tolerance = maxWeight * Number.EPSILON * 4;
   return sets.reduce<SetEntry | undefined>((best, set) => {
-    if (!best || set.weight > best.weight || (set.weight === best.weight && set.reps > best.reps)) return set;
+    if (maxWeight - set.weight > tolerance) return best;
+    if (!best || set.reps > best.reps || (set.reps === best.reps && set.weight > best.weight)) return set;
     return best;
   }, undefined);
 }
 
-export function exerciseHistory(data: WorkoutData, exerciseId: string) {
+export function exerciseHistory(data: WorkoutData, exerciseId: string, groupBy: 'session' | 'block' = 'session') {
   const exerciseIndex = new Map(data.workoutExercises.filter((exercise) => exercise.exerciseId === exerciseId)
-    .map((exercise) => [exercise.id, exercise.sessionId]));
-  const bySession = new Map<string, SetEntry[]>();
+    .map((exercise) => [exercise.id, exercise]));
+  const groups = new Map<string, { sessionId: string; order: number; sets: SetEntry[] }>();
   for (const set of data.sets) {
-    const sessionId = exerciseIndex.get(set.workoutExerciseId);
-    if (!sessionId || !set.isCompleted) continue;
-    const sets = bySession.get(sessionId) ?? [];
-    sets.push(set);
-    bySession.set(sessionId, sets);
+    const block = exerciseIndex.get(set.workoutExerciseId);
+    if (!block || !set.isCompleted) continue;
+    const key = groupBy === 'block' ? block.id : block.sessionId;
+    const group = groups.get(key) ?? { sessionId: block.sessionId, order: block.orderIndex, sets: [] };
+    group.sets.push(set);
+    groups.set(key, group);
   }
-  return data.sessions.flatMap((session) => {
-    const sets = bySession.get(session.id);
-    return sets ? [{ session, sets, volume: totalVolume(sets), best: bestSet(sets)! }] : [];
-  }).sort((a, b) => a.session.completedAt.localeCompare(b.session.completedAt));
+  const sessions = new Map(data.sessions.map((session) => [session.id, session]));
+  return Array.from(groups).flatMap(([id, { sessionId, order, sets }]) => {
+    const session = sessions.get(sessionId);
+    return session ? [{ id, order, session, sets, volume: totalVolume(sets), best: bestSet(sets)! }] : [];
+  }).sort((a, b) => a.session.completedAt.localeCompare(b.session.completedAt) || a.order - b.order);
 }
 
 export type HistoryEntry = ReturnType<typeof exerciseHistory>[number];

@@ -24,6 +24,7 @@ export default function ExerciseDetailScreen() {
   const { data } = useWorkouts();
   const exercise = data?.exercises.find((item) => item.id === id);
   const history = useMemo(() => data ? exerciseHistory(data, id) : [], [data, id]);
+  const appearances = useMemo(() => data ? exerciseHistory(data, id, 'block').reverse() : [], [data, id]);
   if (!data || !exercise) return <Screen><Empty title="Exercise unavailable" />
     <Action label="Back to Exercise Data" onPress={() => router.dismissTo('/data')} /></Screen>;
 
@@ -64,8 +65,8 @@ export default function ExerciseDetailScreen() {
                 <Text style={[styles.best, styles.columnLabel]}>Top Weight / PR</Text>
                 <Text style={[styles.volume, styles.columnLabel]}>Session Volume</Text>
               </View>
-              {history.slice().reverse().map(({ session, sets, best: top, volume }) => (
-                <View key={session.id} style={styles.tableRow}>
+              {appearances.map(({ id: blockId, session, sets, best: top, volume }) => (
+                <View key={blockId} style={styles.tableRow}>
                   <Text style={[styles.date, styles.cell, ui.numeric]}>{formatDate(session.date, { dateStyle: 'medium' })}</Text>
                   <Text style={[styles.sets, styles.cell, ui.numeric]}>{setSummary(sets)}</Text>
                   <Text style={[styles.best, styles.cell, ui.numeric]}>{top.weight > 0 ? `${formatWeight(top.weight, unit)} × ${top.reps}` : `${top.reps} reps`}</Text>
