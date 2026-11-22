@@ -32,3 +32,5 @@ How to set up and run the app, including which Expo SDK version and which device
 
 
 One thing you learned about mobile development that surprised you. Don't use AI for this.
+
+I find it interest how similar native apps are to html. It seems like they share alot of the same structures, ie functions written in java, style specified in css and then the markup in tsx or html. Even alot of the functions share the same purpose with slightly different names for example input vs TextInput, button vs pressable, div vs view, onclick or onpress.

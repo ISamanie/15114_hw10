@@ -70,6 +70,10 @@ issue perssists when adding a workout of 1 set of dips with bodyweight included
 explain to me how this id function works, is it possible for two objects to have the same id,
 i had the section of the code highlighted, asked to copilot
 --------------------
+In addExercise what does exercise.id, the new exercise block id, and the first set's id each identify?
+--------------------
+When you close and reopen the app, where does WorkoutProvider get your saved workouts?
+--------------------
 
 what other similarities do html and native apps share? 
 --------------------
