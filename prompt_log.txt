@@ -1,0 +1,102 @@
+HW10 Prompt Log
+Workout Tracker
+
+AI tool used
+------------
+
+OpenAI Codex in the desktop app. I used a seperate session for verifiying functionality against
+the feature list in my readme.md
+
+-------------------------------------
+
+I'm brand new to React Native. Can you explain at a high level how these files create a working app?
+----------------
+What's the difference between React Native and a regular website? How is a `View` different from a `div`?
+----------------
+How do I add a button and a text input to a React Native screen? Show me a simple example and explain the `useState` hook.
+----------------
+This project uses Expo Router. How does a file in `src/app/` become a screen, and what is `_layout.tsx` for?
+----------------
+
+Read SPEC.md in this project. Implement the full mobile app exactly as specified.
+This is an Expo project using Expo Router, so screens belong in src/app/.
+Check package.json for the exact Expo SDK version and write code for that version.
+Create all necessary files, components, and navigation. Make sure that appropriate data is persistent.
+Avoid security risks for sensitive data.  Include proper error handling.
+Make sure the app starts without errors and displays the home screen correctly.
+
+----------------
+in the workout part of the app, when you click the add exercise search bar the keyboard comes up and blocks the list of workouts typed, move the list upwards to allow the user to simultaneously filter and select from the filtered list
+
+----------------
+The app crashes now when I log a new workout, it seems like the path from the workout tracker to the 
+main page is broken. Included is a screenshot of the crash report.
+----------------
+In a seperate chat
+
+Review the React Native/Expo code in this project against the spec in SPEC.md.\
+For each acceptance criterion in the spec, verify whether the code actually implements it correctly.\
+Also check for:\
+\- Bugs or logic errors\
+\- Missing error handling\
+\- Code quality issues (unclear naming, repeated code, etc.)\
+\- Best practices for React Native or other technologies\
+\
+Format your review as a numbered list of findings, each marked as [PASS], [FAIL], or [WARN].\
+Be specific. Reference file names and line numbers.\
+Do not fix anything in this session. Report only.\
+Export the review as REVIEW\.md at the root of the project.
+
+--------------------
+
+implement the fixes needed described in Review,md, ignore #21 about the color of visual elements.
+I decided to ignore #21 as it was a non-issue and I liked the apperance of the current app, the other issues were 
+more critical to the operation of the app.
+
+---------------------------------------
+
+for bodyweight exercises, use body weight as the weight, allow the user to enter their bw as the weight for these type of exercises
+
+--------------------
+Crash report with a screenshot attached
+when entering a set of bodyweight dips with weight = 0
+
+--------------------
+Follow-up crash report with a screenshot attached
+issue perssists when adding a workout of 1 set of dips with bodyweight included 
+
+--------------------
+
+explain to me how this id function works, is it possible for two objects to have the same id,
+i had the section of the code highlighted, asked to copilot
+--------------------
+
+what other similarities do html and native apps share? 
+--------------------
+
+why did html and native develop into two different languages, it seems to me they share alot of the same functionalities?
+--------------------
+where is user data shared in this project?
+--------------------
+when i host the website on my laptop and access it on my phone is the data being stored in my phone or on my laptop, 
+if so in what folder?
+--------------------
+for bodyweight exercises keep track of the previous bodyweight the user inputed and use that value across sessions, 
+still allow the user to edit it though. For personal best only keep track of the entry with the highest weight, 
+currently you keep track of highest weight and its reps, and max reps.
+
+--------------------
+
+concerning the icons, machine workouts should have a gear as the icon, recovery should have a + symbol, strectches should have 
+a lunge stretch icon, cardion should keep the heartbeat symbol we have, bodyweight workouts can keep the current symbol
+(the one used in dips), and keep the dumbell and barbell icons
+
+--------------------
+
+The calendar is not formatted correctly, it only has 6 columns, and has sun and sat under one column this unalignes 
+the date from the day
+
+--------------------
+How to set up and run the app, including which Expo SDK version and which device or simulator you used. 
+You may use AI to write this piece but you are responsible for its accuracy. help me write this section of the readme.md
+

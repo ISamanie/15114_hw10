@@ -1,4 +1,4 @@
-import { initialData } from './exercises.ts';
+import { initialData, refreshBuiltInExerciseIcon } from './exercises.ts';
 import { equipmentLabels, type Exercise, type SetEntry, type WorkoutData, type WorkoutExercise, type WorkoutSession } from './workouts.ts';
 
 export const workoutKey = 'workout-tracker:v1';
@@ -77,7 +77,13 @@ function isSet(value: unknown): value is SetEntry {
   return isObject(value) && isString(value.id) && isString(value.workoutExerciseId)
     && isCount(value.setNumber) && value.setNumber > 0 && isCount(value.reps) && value.reps > 0
     && isNonnegative(value.weight) && isNonnegative(value.volume) && Number.isFinite(value.weight * value.reps)
-    && typeof value.isCompleted === 'boolean';
+    && typeof value.isCompleted === 'boolean'
+    && isBodyweightLoad(value.bodyweightLoad, value.weight);
+}
+
+function isBodyweightLoad(value: unknown, totalWeight: number) {
+  return value === undefined || (isObject(value) && isNonnegative(value.bodyWeight) && value.bodyWeight > 0
+    && isNonnegative(value.addedWeight) && value.bodyWeight + value.addedWeight === totalWeight);
 }
 
 function recentIds(value: unknown, exercises: Exercise[]) {
@@ -113,15 +119,17 @@ function parseSnapshot(raw: string, recover: boolean) {
     isBlock(value) && exercises.has(value.exerciseId) && sessions.has(value.sessionId));
   const sets = records('sets', (value): value is SetEntry => isSet(value) && blocks.has(value.workoutExerciseId));
   const unit = snapshot.preferredUnit;
+  const bodyWeight = snapshot.preferredBodyWeight;
   if (unit !== 'lb' && unit !== 'kg') damaged = true;
   if (damaged && !recover) throw new DamagedWorkoutSnapshot();
 
   const data: WorkoutData = {
-    exercises: Array.from(exercises.values()),
+    exercises: Array.from(exercises.values(), refreshBuiltInExerciseIcon),
     sessions: Array.from(sessions.values()),
     workoutExercises: Array.from(blocks.values()),
     sets: Array.from(sets.values()),
     preferredUnit: unit === 'kg' ? 'kg' : 'lb',
+    ...(isNonnegative(bodyWeight) && bodyWeight > 0 && { preferredBodyWeight: bodyWeight }),
   };
   if (damaged) {
     const totals = new Map<string, { totalSets: number; totalVolume: number }>();

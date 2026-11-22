@@ -35,7 +35,9 @@ export interface SetEntry {
   workoutExerciseId: string;
   setNumber: number;
   reps: number;
+  /** Total logged load in kilograms. */
   weight: number;
+  bodyweightLoad?: { bodyWeight: number; addedWeight: number };
   volume: number;
   isCompleted: boolean;
 }
@@ -52,6 +54,8 @@ export interface WorkoutData {
   workoutExercises: WorkoutExercise[];
   sets: SetEntry[];
   preferredUnit: WeightUnit;
+  /** Last explicitly entered body weight in kilograms. */
+  preferredBodyWeight?: number;
 }
 
 export interface DraftSet {
@@ -64,6 +68,7 @@ export interface DraftSet {
 export interface DraftExercise {
   id: string;
   exerciseId: string;
+  bodyWeight?: string;
   sets: DraftSet[];
 }
 
@@ -122,16 +127,27 @@ export function filterExercises(exercises: Exercise[], query: string, equipment?
   ));
 }
 
-export function parseDraftSet(set: DraftSet, equipment: EquipmentType, unit: WeightUnit) {
-  const input = set.weight.trim().replace(',', '.');
+export function parseWeightInput(input: string, unit: WeightUnit) {
+  const decimal = input.trim().replace(',', '.');
+  const weight = Number(decimal);
+  if (!/^\d*\.?\d+$/.test(decimal) || !Number.isFinite(weight) || weight > 99999) return null;
+  return unit === 'lb' ? weight * kgPerPound : weight;
+}
+
+export function parseDraftSet(set: DraftSet, equipment: EquipmentType, unit: WeightUnit, bodyWeightInput = '') {
   const repsText = set.reps.trim();
   const reps = Number(repsText);
-  const requiredWeight = equipment !== 'bodyweight' || input !== '';
   if (!/^\d+$/.test(repsText) || reps < 1 || reps > 9999) return null;
-  if (requiredWeight && !/^\d*\.?\d+$/.test(input)) return null;
-  const weight = Number(input);
-  if (!Number.isFinite(weight) || weight > 99999) return null;
-  return { reps, weight: unit === 'lb' ? weight * kgPerPound : weight };
+
+  const bodyweight = equipment === 'bodyweight';
+  const weight = bodyweight && !set.weight.trim() ? 0 : parseWeightInput(set.weight, unit);
+  if (weight === null) return null;
+  if (!bodyweight || !bodyWeightInput.trim()) return { reps, weight };
+
+  const bodyWeight = parseWeightInput(bodyWeightInput, unit);
+  if (bodyWeight === null) return null;
+  if (bodyWeight === 0) return { reps, weight };
+  return { reps, weight: bodyWeight + weight, bodyweightLoad: { bodyWeight, addedWeight: weight } };
 }
 
 export function buildWorkout(
@@ -148,8 +164,11 @@ export function buildWorkout(
     if (!completed.length) continue;
     exercises.push({ id: draft.id, sessionId: session.id, exerciseId: exercise.id, orderIndex: exercises.length });
     completed.forEach((set, index) => {
-      const values = parseDraftSet(set, exercise.equipmentType, session.unit);
-      if (!values) throw new Error(`Check the weight and reps for ${exercise.name}.`);
+      const values = parseDraftSet(set, exercise.equipmentType, session.unit, draft.bodyWeight);
+      if (!values) {
+        const fields = exercise.equipmentType === 'bodyweight' ? 'body weight, added weight, and reps' : 'weight and reps';
+        throw new Error(`Check the ${fields} for ${exercise.name}.`);
+      }
       sets.push({
         ...values,
         id: set.id,
@@ -171,6 +190,48 @@ export function getWorkout(data: WorkoutData, session: WorkoutSession): WorkoutR
   return { session, exercises, sets };
 }
 
+export function restoreDraftExercises(workout: WorkoutRecord): DraftExercise[] {
+  const { unit } = workout.session;
+  return workout.exercises.slice().sort((a, b) => a.orderIndex - b.orderIndex).map((exercise) => {
+    const sets = workout.sets.filter((set) => set.workoutExerciseId === exercise.id).sort((a, b) => a.setNumber - b.setNumber);
+    const load = sets[0]?.bodyweightLoad;
+    return {
+      id: exercise.id,
+      exerciseId: exercise.exerciseId,
+      bodyWeight: load && formatWeightInput(load.bodyWeight, unit),
+      sets: sets.map((set) => ({
+        id: set.id, weight: formatWeightInput(set.bodyweightLoad?.addedWeight ?? set.weight, unit),
+        reps: String(set.reps), done: true,
+      })),
+    };
+  });
+}
+
+export function rememberedBodyWeight(data: WorkoutData) {
+  if (data.preferredBodyWeight !== undefined) return data.preferredBodyWeight;
+
+  // Older snapshots already stored body weight on completed sets.
+  const weightsByBlock = new Map<string, number>();
+  for (const set of data.sets) {
+    if (set.isCompleted && set.bodyweightLoad) {
+      weightsByBlock.set(set.workoutExerciseId, set.bodyweightLoad.bodyWeight);
+    }
+  }
+
+  const completionTimes = new Map(data.sessions.map(({ id, completedAt }) => [id, Date.parse(completedAt)]));
+  let latestTime = -Infinity;
+  let bodyWeight: number | undefined;
+  for (const block of data.workoutExercises) {
+    const weight = weightsByBlock.get(block.id);
+    const time = completionTimes.get(block.sessionId);
+    if (weight !== undefined && time !== undefined && time >= latestTime) {
+      latestTime = time;
+      bodyWeight = weight;
+    }
+  }
+  return bodyWeight;
+}
+
 export function removeWorkout(data: WorkoutData, sessionId: string): WorkoutData {
   const exerciseIds = new Set(data.workoutExercises.filter((item) => item.sessionId === sessionId).map((item) => item.id));
   return {
@@ -181,7 +242,7 @@ export function removeWorkout(data: WorkoutData, sessionId: string): WorkoutData
   };
 }
 
-export function putWorkout(data: WorkoutData, workout: WorkoutRecord): WorkoutData {
+export function putWorkout(data: WorkoutData, workout: WorkoutRecord, bodyWeight?: number): WorkoutData {
   const next = removeWorkout(data, workout.session.id);
   return {
     ...next,
@@ -189,6 +250,7 @@ export function putWorkout(data: WorkoutData, workout: WorkoutRecord): WorkoutDa
     workoutExercises: [...next.workoutExercises, ...workout.exercises],
     sets: [...next.sets, ...workout.sets],
     preferredUnit: workout.session.unit,
+    ...(bodyWeight !== undefined && { preferredBodyWeight: bodyWeight }),
   };
 }
 
@@ -201,14 +263,7 @@ export function totalReps(sets: SetEntry[]) {
 }
 
 export function bestSet(sets: SetEntry[]) {
-  const maxWeight = sets.reduce((max, set) => Math.max(max, set.weight), 0);
-  // Equivalent weights converted from pounds can differ by a few floating-point bits.
-  const tolerance = maxWeight * Number.EPSILON * 4;
-  return sets.reduce<SetEntry | undefined>((best, set) => {
-    if (maxWeight - set.weight > tolerance) return best;
-    if (!best || set.reps > best.reps || (set.reps === best.reps && set.weight > best.weight)) return set;
-    return best;
-  }, undefined);
+  return sets.reduce<SetEntry | undefined>((best, set) => !best || set.weight > best.weight ? set : best, undefined);
 }
 
 export function exerciseHistory(data: WorkoutData, exerciseId: string, groupBy: 'session' | 'block' = 'session') {
@@ -239,11 +294,11 @@ export function cutoffDate(months: number, now = new Date()) {
   return dateKey(first);
 }
 
-export function progressSeries(history: HistoryEntry[], metric: 'best' | 'volume', unit: WeightUnit, weighted: boolean, cutoff: string) {
+export function progressSeries(history: HistoryEntry[], metric: 'best' | 'volume', unit: WeightUnit, cutoff: string) {
   let runningBest = 0;
   const points: { id: string; date: string; timestamp: number; value: number }[] = [];
   for (const { session, best, volume } of history) {
-    runningBest = Math.max(runningBest, weighted ? inUnit(best.weight, unit) : best.reps);
+    runningBest = Math.max(runningBest, inUnit(best.weight, unit));
     if (session.date < cutoff) continue;
     points.push({ id: session.id, date: session.date, timestamp: Date.parse(session.completedAt),
       value: metric === 'best' ? runningBest : inUnit(volume, unit) });

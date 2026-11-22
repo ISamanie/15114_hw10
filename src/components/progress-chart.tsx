@@ -15,18 +15,17 @@ const plotHeight = 174;
 const axisLabel = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const shortDate = { month: 'short', day: 'numeric' } as const;
 
-export function ProgressChart({ history, unit, weighted }: { history: HistoryEntry[]; unit: WeightUnit; weighted: boolean }) {
+export function ProgressChart({ history, unit }: { history: HistoryEntry[]; unit: WeightUnit }) {
   const [metric, setMetric] = useState<Metric>('best');
   const [range, setRange] = useState<Range>('all');
   const [selectedId, setSelectedId] = useState<string>();
   const [width, setWidth] = useState(0);
-  const points = useMemo(() => progressSeries(history, metric, unit, weighted, range === 'all' ? '' : cutoffDate(Number(range))),
-    [history, metric, range, unit, weighted]);
+  const points = useMemo(() => progressSeries(history, metric, unit, range === 'all' ? '' : cutoffDate(Number(range))),
+    [history, metric, range, unit]);
 
   const selectedIndex = points.findIndex((point) => point.id === selectedId);
   const index = selectedIndex >= 0 ? selectedIndex : points.length - 1;
   const selected = points[index];
-  const measure = metric === 'best' && !weighted ? 'reps' : unit;
   const maximum = points.reduce((max, point) => Math.max(max, point.value), 0);
   const stepScale = 10 ** Math.floor(Math.log10((maximum || 1) / 3));
   const step = Math.ceil((maximum || 1) / (3 * stepScale)) * stepScale;
@@ -52,7 +51,7 @@ export function ProgressChart({ history, unit, weighted }: { history: HistoryEnt
       <Chips options={ranges} value={range} onChange={(value) => { setRange(value); setSelectedId(undefined); }} label="Chart date range" />
       {!selected || !first || !last ? <Empty title="No sessions in this period" detail="Log this exercise to see your progress here." icon="chart" /> : (
         <>
-          <Text style={styles.axisCaption}>{metric === 'best' ? 'Personal best' : 'Session volume'} ({measure})</Text>
+          <Text style={styles.axisCaption}>{metric === 'best' ? 'Personal best' : 'Session volume'} ({unit})</Text>
           <View style={styles.plot} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
             {width > 0 && <Svg width={width} height={plotHeight} accessible={false}>
               {[0, 1, 2, 3].map((level) => {
@@ -76,7 +75,7 @@ export function ProgressChart({ history, unit, weighted }: { history: HistoryEnt
           <View style={styles.readout}>
             <IconButton icon="left" label="Previous data point" disabled={index <= 0} onPress={() => setSelectedId(points[index - 1].id)} />
             <View style={ui.flex} accessibilityLiveRegion="polite">
-              <Text style={[ui.emphasis, ui.center, ui.numeric]}>{formatNumber(selected.value)} {measure}</Text>
+              <Text style={[ui.emphasis, ui.center, ui.numeric]}>{formatNumber(selected.value)} {unit}</Text>
               <Text style={[ui.muted, ui.center]}>{formatDate(selected.date, { dateStyle: 'medium' })}</Text>
             </View>
             <IconButton icon="right" label="Next data point" disabled={index >= points.length - 1} onPress={() => setSelectedId(points[index + 1].id)} />

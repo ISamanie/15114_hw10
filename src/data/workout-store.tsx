@@ -11,7 +11,7 @@ type WorkoutStore = {
   retry: () => void;
   recover: () => void;
   addExercise: (exercise: Exercise) => Promise<void>;
-  saveWorkout: (workout: WorkoutRecord) => Promise<void>;
+  saveWorkout: (workout: WorkoutRecord, bodyWeight?: number) => Promise<void>;
   deleteWorkout: (id: string) => Promise<void>;
   visitExercise: (id: string) => void;
 };
@@ -80,7 +80,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           ? snapshot : { ...snapshot, exercises: [...snapshot.exercises, exercise] });
         visitExercise(exercise.id);
       },
-      saveWorkout: (workout) => update((snapshot) => putWorkout(snapshot, workout)),
+      saveWorkout: (workout, bodyWeight) => update((snapshot) => putWorkout(snapshot, workout, bodyWeight)),
       deleteWorkout: (id) => update((snapshot) => removeWorkout(snapshot, id)),
       visitExercise,
     }}>

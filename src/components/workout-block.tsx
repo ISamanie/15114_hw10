@@ -6,9 +6,10 @@ import { ExerciseThumbnail } from './exercise-row';
 import { Icon } from './tracker-icon';
 import { Action, IconButton, ui } from './tracker-ui';
 
-export function WorkoutBlock({ draft, exercise, unit, disabled, onAddSet, onRemove, onChangeSet, onDeleteSet, onToggleSet }: {
+export function WorkoutBlock({ draft, exercise, unit, disabled, onAddSet, onRemove, onChangeBodyWeight, onChangeSet, onDeleteSet, onToggleSet }: {
   draft: DraftExercise; exercise: Exercise; unit: WeightUnit; disabled: boolean;
   onAddSet: () => void; onRemove: () => void;
+  onChangeBodyWeight: (value: string) => void;
   onChangeSet: (id: string, field: 'weight' | 'reps', value: string) => void;
   onDeleteSet: (id: string) => void; onToggleSet: (set: DraftSet, number: number) => void;
 }) {
@@ -25,6 +26,14 @@ export function WorkoutBlock({ draft, exercise, unit, disabled, onAddSet, onRemo
         </View>
         <IconButton icon="close" label={`Remove ${exercise.name}`} onPress={onRemove} disabled={disabled} />
       </View>
+      {bodyweight && (
+        <View style={ui.row}>
+          <Text style={[ui.emphasis, ui.flex]}>Body weight ({unit})</Text>
+          <TextInput accessibilityLabel={`${exercise.name}, body weight in ${unit}`} value={draft.bodyWeight ?? ''}
+            onChangeText={onChangeBodyWeight} inputMode="decimal" maxLength={12} placeholder="Optional"
+            placeholderTextColor={Palette.muted} editable={!disabled} style={[styles.input, styles.bodyWeightInput, ui.numeric]} />
+        </View>
+      )}
       {!!draft.sets.length && <View style={[styles.setRow, styles.heading]}>
         <Text style={[styles.setNumber, styles.column]}>Set</Text>
         {bodyweight && <Text style={[ui.flex, styles.column]}>Reps</Text>}
@@ -77,6 +86,7 @@ const styles = StyleSheet.create({
   setNumber: { width: 29 },
   control: { width: 44 },
   addedWeight: { flex: 1.45 },
+  bodyWeightInput: { flex: 1, minWidth: 100 },
   input: { minHeight: 42, minWidth: 0, borderWidth: 1, borderColor: Palette.border, borderRadius: Radius.chip,
     backgroundColor: Palette.surface, color: Palette.text, fontSize: 16, textAlign: 'center', paddingHorizontal: 4 },
   checkTarget: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },

@@ -13,7 +13,7 @@ export type ExerciseDraft = {
   equipment: EquipmentType;
   muscle: string;
   description: string;
-  icon: ExerciseIcon;
+  icon?: ExerciseIcon;
   photo?: ExercisePhoto;
   photoError?: string;
 };
@@ -23,8 +23,9 @@ function readDraft(raw: string | null): ExerciseDraft | null {
   try {
     const draft: Partial<ExerciseDraft> | null = JSON.parse(raw);
     if (!draft || typeof draft.id !== 'string' || !/^[a-z\d-]+$/i.test(draft.id) || typeof draft.name !== 'string' ||
-      typeof draft.muscle !== 'string' || typeof draft.description !== 'string' || typeof draft.icon !== 'string' ||
-      !Object.hasOwn(exerciseIcons, draft.icon) || typeof draft.equipment !== 'string' || !Object.hasOwn(equipmentLabels, draft.equipment) ||
+      typeof draft.muscle !== 'string' || typeof draft.description !== 'string' ||
+      (draft.icon !== undefined && (typeof draft.icon !== 'string' || !Object.hasOwn(exerciseIcons, draft.icon))) ||
+      typeof draft.equipment !== 'string' || !Object.hasOwn(equipmentLabels, draft.equipment) ||
       (draft.photo !== undefined && (!draft.photo || typeof draft.photo.uri !== 'string' || !draft.photo.uri ||
         (draft.photo.fileName != null && typeof draft.photo.fileName !== 'string')))) return null;
     return {

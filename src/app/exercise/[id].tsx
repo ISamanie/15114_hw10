@@ -32,11 +32,9 @@ export default function ExerciseDetailScreen() {
 
   const unit = data.preferredUnit;
   const best = bestSet(history.map((entry) => entry.best));
-  const weighted = (best?.weight ?? 0) > 0;
-  const maxReps = history.reduce((max, entry) => entry.sets.reduce((current, set) => Math.max(current, set.reps), max), 0);
   const lifetimeVolume = history.reduce((sum, item) => sum + item.volume, 0);
   const sessionVolumes = new Map(history.map((entry) => [entry.session.id, entry.volume]));
-  const bestLabel = best ? (weighted ? formatWeight(best.weight, unit) : `${maxReps} reps`) : '—';
+  const bestLabel = best ? formatWeight(best.weight, unit) : '—';
 
   return (
     <FlatList data={appearances} keyExtractor={(entry) => entry.id} style={ui.canvas}
@@ -56,11 +54,11 @@ export default function ExerciseDetailScreen() {
             <Text style={ui.text}>{exercise.description}</Text>
           </View>
           <View style={styles.stats}>
-            <Stat label="Personal Best" value={bestLabel} detail={best && weighted ? `${best.reps} reps at best · ${maxReps} max reps` : undefined} featured />
+            <Stat label="Personal Best" value={bestLabel} featured />
             <Stat label="All-Time Volume" value={formatWeight(lifetimeVolume, unit)} />
             <Stat label="Total Sessions" value={String(history.length)} />
           </View>
-          <ProgressChart history={history} unit={unit} weighted={weighted} />
+          <ProgressChart history={history} unit={unit} />
           <View style={styles.history}>
             <Text accessibilityRole="header" style={ui.h2}>History</Text>
             {!!appearances.length && (
@@ -81,7 +79,7 @@ export default function ExerciseDetailScreen() {
         <View style={[styles.tableRow, index === appearances.length - 1 && styles.tableEnd]}>
           <Text style={[styles.column, styles.cell, ui.numeric]}>{formatDate(session.date, { dateStyle: 'medium' })}</Text>
           <Text style={[styles.column, styles.cell, ui.numeric]}>{setSummary(sets)}</Text>
-          <Text style={[styles.column, styles.cell, ui.numeric]}>{top.weight > 0 ? `${formatWeight(top.weight, unit)} × ${top.reps}` : `${top.reps} reps`}</Text>
+          <Text style={[styles.column, styles.cell, ui.numeric]}>{formatWeight(top.weight, unit)}</Text>
           <Text style={[styles.volume, styles.cell, ui.numeric]}>{formatWeight(sessionVolumes.get(session.id) ?? volume, unit)}</Text>
         </View>
       )}
@@ -89,12 +87,11 @@ export default function ExerciseDetailScreen() {
   );
 }
 
-function Stat({ label, value, detail, featured }: { label: string; value: string; detail?: string; featured?: boolean }) {
+function Stat({ label, value, featured }: { label: string; value: string; featured?: boolean }) {
   return (
     <View style={[ui.card, styles.stat, featured && styles.featured]}>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={[styles.statValue, ui.numeric]}>{value}</Text>
-      {detail && <Text style={[ui.muted, ui.numeric]}>{detail}</Text>}
     </View>
   );
 }

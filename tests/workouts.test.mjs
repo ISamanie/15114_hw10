@@ -2,17 +2,21 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { exerciseDraftKey, recoverExerciseDraft } from '../src/data/exercise-draft.ts';
-import { initialData } from '../src/data/exercises.ts';
+import { defaultExerciseIcons, exerciseIcons, initialData } from '../src/data/exercises.ts';
 import { DamagedWorkoutSnapshot, loadWorkoutState, recentKey, saveRecentExercises, workoutKey } from '../src/data/workout-persistence.ts';
-import { bestSet, buildWorkout, cutoffDate, exerciseHistory, formatWeightInput, getWorkout, parseDraftSet, progressSeries,
-  putWorkout, removeWorkout } from '../src/data/workouts.ts';
+import { bestSet, buildWorkout, cutoffDate, exerciseHistory, formatWeightInput, getWorkout, parseDraftSet, parseWeightInput, progressSeries,
+  putWorkout, rememberedBodyWeight, removeWorkout, restoreDraftExercises } from '../src/data/workouts.ts';
 
 const benchId = 'barbell-bench-press';
 
-function workout(id, unit, blocks, day = '2026-10-10') {
+function session(id, unit, day = '2026-10-10') {
   const startedAt = `${day}T16:00:00.000Z`;
   const completedAt = `${day}T16:15:00.000Z`;
-  return buildWorkout({ id, unit, date: day, startedAt, completedAt, durationSeconds: 900 },
+  return { id, unit, date: day, startedAt, completedAt, durationSeconds: 900 };
+}
+
+function workout(id, unit, blocks, day) {
+  return buildWorkout(session(id, unit, day),
     blocks.map((rows, index) => ({ id: `${id}-block-${index}`, exerciseId: benchId,
       sets: rows.map(([weight, reps, done = true], setIndex) => ({ id: `${id}-${index}-${setIndex}`, weight, reps, done })),
     })), initialData().exercises);
@@ -27,14 +31,12 @@ function memoryStorage(entries = []) {
   } };
 }
 
-test('equivalent mixed-unit weights use reps as the PR tie-breaker', () => {
-  const pounds = workout('imperial', 'lb', [[['5', '4']]]);
-  const kilos = workout('metric', 'kg', [[['2.26796185', '12']]]);
-  const lighter = workout('lighter', 'kg', [[['2.26796184', '15']]]);
-  const data = [pounds, kilos, lighter].reduce(putWorkout, initialData());
-  const history = exerciseHistory(data, benchId);
-  assert.equal(bestSet(history.map(({ best }) => best)).id, kilos.sets[0].id);
-  assert.equal(bestSet([{ weight: 0, reps: 10 }, { weight: 0, reps: 12 }]).reps, 12);
+test('personal best depends only on weight, including ties and reps-only sessions', () => {
+  const log = workout('weight-pr', 'kg', [[['50', '4'], ['50', '12'], ['45', '20']]]);
+  assert.equal(bestSet(log.sets).id, log.sets[0].id);
+  const noLoad = workout('no-load', 'kg', [[['0', '20']]]);
+  const history = exerciseHistory(putWorkout(initialData(), noLoad), benchId);
+  assert.deepEqual(progressSeries(history, 'best', 'kg', '').map(({ value }) => value), [0]);
 });
 
 test('small decimal weights can be saved again after editing in either unit', () => {
@@ -49,6 +51,86 @@ test('small decimal weights can be saved again after editing in either unit', ()
   }
 });
 
+test('body weight and optional added weight count toward volume and PRs', async () => {
+  for (const unit of ['lb', 'kg']) {
+    const library = initialData().exercises;
+    const active = session(`bodyweight-${unit}`, unit);
+    const draft = { id: 'pull-up-block', exerciseId: 'pull-ups', bodyWeight: '80,5', sets: [
+      { id: 'ordinary-pull-ups', weight: '', reps: '8', done: true },
+      { id: 'weighted-pull-ups', weight: '12.5', reps: '5', done: true },
+    ] };
+    const original = buildWorkout(active, [draft], library);
+    assert.deepEqual(original.sets.map(({ weight }) => formatWeightInput(weight, unit)), ['80.5', '93']);
+    assert.equal(formatWeightInput(original.session.totalVolume, unit), '1109');
+
+    const storage = memoryStorage([[workoutKey, JSON.stringify(putWorkout(initialData(), original))]]);
+    const { data } = await loadWorkoutState(storage);
+    const entry = exerciseHistory(data, 'pull-ups')[0];
+    assert.equal(entry.best.id, 'weighted-pull-ups');
+    assert.equal(formatWeightInput(entry.volume, unit), '1109');
+    const restored = restoreDraftExercises(getWorkout(data, original.session));
+    assert.equal(restored[0].bodyWeight, '80.5');
+    assert.deepEqual(restored[0].sets.map(({ weight }) => weight), ['0', '12.5']);
+    assert.deepEqual(buildWorkout(active, restored, library), original);
+  }
+});
+
+test('older bodyweight sets retain their original weight when edited', async () => {
+  const active = session('legacy-bodyweight', 'kg');
+  const original = buildWorkout(active, [{ id: 'old-block', exerciseId: 'push-ups', sets: [
+    { id: 'unweighted', weight: '0', reps: '10', done: true },
+    { id: 'added-only', weight: '5', reps: '8', done: true },
+  ] }], initialData().exercises);
+  const storage = memoryStorage([[workoutKey, JSON.stringify(putWorkout(initialData(), original))]]);
+  const { data } = await loadWorkoutState(storage);
+  const restored = restoreDraftExercises(getWorkout(data, original.session));
+  assert.equal(restored[0].bodyWeight, undefined);
+  assert.deepEqual(restored[0].sets.map(({ weight }) => weight), ['0', '5']);
+  assert.deepEqual(buildWorkout(active, restored, data.exercises), original);
+});
+
+test('bodyweight defaults to the most recent saved measurement and survives an editable update and reload', async () => {
+  const library = initialData().exercises;
+  function bodyweightWorkout(id, date, exerciseId, bodyWeight, addedWeight) {
+    return buildWorkout(session(id, 'lb', date), [{ id: `${id}-block`, exerciseId, bodyWeight,
+      sets: [{ id: `${id}-set`, weight: addedWeight, reps: '6', done: true }],
+    }], library);
+  }
+  const latest = bodyweightWorkout('latest', '2026-10-11', 'pull-ups', '175', '25');
+  const earlier = bodyweightWorkout('earlier', '2026-10-01', 'dips', '170', '0');
+  const addedOnly = bodyweightWorkout('added-only', '2026-10-12', 'dips', '', '30');
+  const legacy = [latest, earlier, addedOnly].reduce((data, log) => putWorkout(data, log), initialData());
+  assert.equal(formatWeightInput(rememberedBodyWeight(legacy), 'lb'), '175');
+  assert.equal(rememberedBodyWeight(initialData()), undefined);
+
+  const edited = bodyweightWorkout('earlier', '2026-10-01', 'dips', '172', '0');
+  let updated = putWorkout(legacy, edited, parseWeightInput('172', 'lb'));
+  updated = putWorkout(updated, workout('metric-workout', 'kg', [[['70', '5']]], '2026-10-13'));
+  const storage = memoryStorage([[workoutKey, JSON.stringify(updated)]]);
+  const { data } = await loadWorkoutState(storage);
+  assert.equal(formatWeightInput(rememberedBodyWeight(data), 'lb'), '172');
+  assert.equal(formatWeightInput(rememberedBodyWeight(data), 'kg'), '78.01788764');
+  assert.equal(restoreDraftExercises(getWorkout(data, latest.session))[0].bodyWeight, '175');
+});
+
+test('dips can be checked off and saved with zero weight', () => {
+  const set = { id: 'dips-set', weight: '0', reps: '10', done: true };
+  for (const input of ['-80', '80kg']) {
+    assert.equal(parseDraftSet(set, 'bodyweight', 'kg', input), null);
+  }
+  assert.deepEqual(parseDraftSet(set, 'bodyweight', 'kg', ''), { reps: 10, weight: 0 });
+  assert.deepEqual(parseDraftSet(set, 'bodyweight', 'kg', '0'), { reps: 10, weight: 0 });
+  assert.equal(parseDraftSet({ ...set, weight: '' }, 'machine', 'kg', '80'), null);
+
+  const log = buildWorkout(session('dips-workout', 'kg'), [
+    { id: 'dips-block', exerciseId: 'dips', bodyWeight: '0', sets: [set] },
+  ], initialData().exercises);
+  assert.equal(log.session.totalVolume, 0);
+  assert.equal(log.session.totalSets, 1);
+  assert.equal(log.sets[0].reps, 10);
+  assert.equal(log.sets[0].isCompleted, true);
+});
+
 test('history keeps each logged block while progress and totals group by session', () => {
   const first = workout('first', 'kg', [[['25', '5'], ['200', '1', false]], [['30', '5']]], '2026-09-30');
   const second = workout('second', 'kg', [[['20', '4']]], '2026-10-10');
@@ -60,8 +142,8 @@ test('history keeps each logged block while progress and totals group by session
   assert.deepEqual(blocks.map(({ id, volume }) => [id, volume]),
     [['second-block-0', 80], ['first-block-1', 150], ['first-block-0', 125]]);
   assert.deepEqual(history.map(({ volume }) => volume), [275, 80]);
-  assert.deepEqual(progressSeries(history, 'best', 'kg', true, '2026-10-01').map(({ value }) => value), [30]);
-  assert.deepEqual(progressSeries(history, 'volume', 'kg', true, '2026-10-01').map(({ value }) => value), [80]);
+  assert.deepEqual(progressSeries(history, 'best', 'kg', '2026-10-01').map(({ value }) => value), [30]);
+  assert.deepEqual(progressSeries(history, 'volume', 'kg', '2026-10-01').map(({ value }) => value), [80]);
   assert.equal(cutoffDate(1, new Date(2026, 2, 31)), '2026-02-28');
 });
 
@@ -91,6 +173,37 @@ test('legacy recents migrate and future visits do not write workout history', as
   assert.deepEqual((await loadWorkoutState(storage)).recents, ['push-ups', benchId]);
   assert.equal(storage.values.get(workoutKey), raw);
   assert.deepEqual(storage.writes, [recentKey, recentKey]);
+});
+
+test('saved built-in exercises adopt the new thumbnails and custom icon or photo choices survive', async () => {
+  const data = initialData();
+  data.exercises = data.exercises.map((exercise) => exercise.id === 'leg-press' ? { ...exercise, imageUri: 'icon:legs' }
+    : exercise.id === 'planks' ? { ...exercise, imageUri: 'icon:core' } : exercise);
+  const original = data.exercises.find(({ id }) => id === 'dips');
+  data.exercises.push(
+    { ...original, id: 'custom-cardio', imageUri: 'icon:core', isCustom: true },
+    { ...original, id: 'custom-photo', imageUri: 'photo:custom.png', isCustom: true },
+  );
+  const storage = memoryStorage([[workoutKey, JSON.stringify(data)]]);
+  const loaded = (await loadWorkoutState(storage)).data.exercises;
+  const thumb = (id) => loaded.find((exercise) => exercise.id === id).imageUri;
+  const builtIns = loaded.filter((exercise) => !exercise.isCustom && exercise.equipmentType !== 'free_weight');
+  assert.ok(builtIns.every((exercise) => exercise.imageUri === `icon:${defaultExerciseIcons[exercise.equipmentType]}`));
+  assert.equal(thumb('barbell-bench-press'), 'icon:barbell');
+  assert.equal(thumb('dumbbell-curl'), 'icon:dumbbell');
+  assert.equal(thumb('custom-cardio'), 'icon:core');
+  assert.equal(thumb('custom-photo'), 'photo:custom.png');
+});
+
+test('photo recovery accepts a draft that still uses the equipment default icon', async () => {
+  const draft = { id: 'default-icon', name: 'Machine press', muscle: 'Chest', description: 'Press forward', equipment: 'machine' };
+  const storage = memoryStorage([[exerciseDraftKey, JSON.stringify(draft)]]);
+  const restored = await recoverExerciseDraft(storage, async () => null);
+  assert.equal(restored.icon, undefined);
+  assert.equal(defaultExerciseIcons[restored.equipment], 'machine');
+  assert.equal(exerciseIcons.core, 'Cardio');
+  assert.equal(exerciseIcons.plus, 'Recovery');
+  assert.equal(exerciseIcons.legs, 'Lunge stretch');
 });
 
 test('recovery backs up the original, keeps valid records, and recalculates totals', async () => {

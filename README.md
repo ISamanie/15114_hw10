@@ -1,56 +1,34 @@
-# Welcome to your Expo app 👋
+README.md: Located at the repository root. Include:
+What your app does and why you chose this idea (1-2 sentences). Don't use AI to write this.
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+My app is a workout tracker app, I chose this idea because I've used apps like these in the past 
+but most useful features are locked behind paywalls or the app is riddled with pop-up ads. The
+app allows you to log your workout and track your progress in individual exercises, it also has
+options for data visulization that help users see how they are progressing.
 
-## Get started
+A description of each screen and what the user can do on it. Don't use AI to write this.
 
-1. Install dependencies
+Homescreen - Main naviation screen, features blocks to other pages as well as a calendar view of past workouts. Other pages linked include the add workout page, and the view exxercise data page.
 
-   ```bash
-   npm install
-   ```
+View Exercise Data - Allows users to add new exercises to their catalogue and filter exercises
+for viewing. Once a user selects an exercises a new page opens with logged data such as the users personal best, their total volume across time, the total number of sessions they've done this workout. Personal best and session volume can also be plotted on a graph with adjustable time bounds for easy viewing.
 
-2. Start the app
+How to set up and run the app, including which Expo SDK version and which device or simulator you used. You may use AI to write this piece but you are responsible for its accuracy.
 
-   ```bash
-   npx expo start
-   ```
+   Workout Tracker uses **Expo SDK 58**. I ran it on an **Android phone using Expo Go**.
 
-In the output, you'll find options to open the app in a
+   1. Install Node.js 26 LTS on your computer and Expo Go from Google Play on your phone. Sign in to Expo Go with a free Expo account.
+   2. Clone this repository and open a terminal in the directory containing `package.json`. Run the commands below and use the same Expo account when you sign in from the terminal.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+      ```bash
+      npm install
+      npx expo login
+      npx expo start
+      ```
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   3. Connect your phone and computer to the same Wi-Fi network. In Expo Go, scan the QR code printed in the terminal to open Workout Tracker.
 
-## Get a fresh project
+   If the local Wi-Fi connection fails, restart the server with `npx expo start --tunnel` and scan the new QR code.
 
-When you're ready, run:
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+One thing you learned about mobile development that surprised you. Don't use AI for this.

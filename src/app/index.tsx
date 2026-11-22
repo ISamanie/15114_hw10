@@ -43,7 +43,7 @@ function TrainingLog({ initialDay }: { initialDay?: string }) {
   const monthIndex = month.getMonth();
   const firstWeekday = month.getDay();
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  const weekCount = Math.ceil((firstWeekday + daysInMonth) / weekdays.length);
   const monthSessionCount = data.sessions.filter((session) => session.date.startsWith(dateKey(month).slice(0, 7))).length;
 
   function changeMonth(delta: number) {
@@ -90,27 +90,35 @@ function TrainingLog({ initialDay }: { initialDay?: string }) {
               <IconButton icon="right" label="Next month" onPress={() => changeMonth(1)} />
             </View>
             <View style={styles.week}>
-              {weekdays.map((day) => <Text key={day} style={[styles.weekday, ui.muted]}>{day}</Text>)}
+              {weekdays.map((day) => (
+                <View key={day} style={styles.column}>
+                  <Text style={[ui.muted, styles.weekday]}>{day}</Text>
+                </View>
+              ))}
             </View>
-            <View style={styles.week}>
-              {Array.from({ length: cellCount }, (_, index) => {
-                const day = index - firstWeekday + 1;
-                if (day < 1 || day > daysInMonth) return <View key={index} style={styles.cell} />;
-                const key = dateKey(new Date(year, monthIndex, day));
-                const count = workoutsByDay.get(key)?.length ?? 0;
-                const selected = key === selectedDay;
-                return (
-                  <View key={index} style={styles.cell}>
-                    <Pressable accessibilityRole="button" accessibilityState={{ selected }}
-                      accessibilityLabel={`${formatDate(key, { dateStyle: 'full' })}, ${count} ${count === 1 ? 'workout' : 'workouts'}`}
-                      onPress={() => setSelectedDay(key)} style={({ pressed }) => [styles.day, !!count && styles.logged,
-                        key === dateKey(today) && styles.today, selected && styles.selected, pressed && ui.pressed]}>
-                      <Text style={[styles.dayText, ui.numeric, selected && styles.lightText]}>{day}</Text>
-                      {!!count && <View style={[styles.dot, selected && styles.lightDot]} />}
-                    </Pressable>
-                  </View>
-                );
-              })}
+            <View>
+              {Array.from({ length: weekCount }, (_, week) => (
+                <View key={week} style={styles.week}>
+                  {weekdays.map((weekday, column) => {
+                    const day = week * weekdays.length + column - firstWeekday + 1;
+                    if (day < 1 || day > daysInMonth) return <View key={weekday} style={styles.column} />;
+                    const key = dateKey(new Date(year, monthIndex, day));
+                    const count = workoutsByDay.get(key)?.length ?? 0;
+                    const selected = key === selectedDay;
+                    return (
+                      <View key={weekday} style={[styles.column, styles.cell]}>
+                        <Pressable accessibilityRole="button" accessibilityState={{ selected }}
+                          accessibilityLabel={`${formatDate(key, { dateStyle: 'full' })}, ${count} ${count === 1 ? 'workout' : 'workouts'}`}
+                          onPress={() => setSelectedDay(key)} style={({ pressed }) => [styles.day, !!count && styles.logged,
+                            key === dateKey(today) && styles.today, selected && styles.selected, pressed && ui.pressed]}>
+                          <Text style={[styles.dayText, ui.numeric, selected && styles.lightText]}>{day}</Text>
+                          {!!count && <View style={[styles.dot, selected && styles.lightDot]} />}
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
           </View>
           <Text accessibilityRole="header" style={ui.h3}>{formatDate(selectedDay, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
@@ -178,9 +186,10 @@ const styles = StyleSheet.create({
   countBadge: { backgroundColor: Palette.mint, borderRadius: Radius.chip, paddingHorizontal: 8, paddingVertical: 5 },
   countText: { fontSize: 12, color: Palette.accentText, fontWeight: '700' },
   calendar: { padding: 8, paddingBottom: 12, gap: 4 },
-  week: { flexDirection: 'row', flexWrap: 'wrap' },
-  weekday: { width: `${100 / 7}%`, textAlign: 'center', fontSize: 12 },
-  cell: { width: `${100 / 7}%`, minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  week: { flexDirection: 'row' },
+  column: { flex: 1, minWidth: 0 },
+  weekday: { textAlign: 'center', fontSize: 12 },
+  cell: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
   day: { width: '92%', maxWidth: 46, minHeight: 40, borderRadius: Radius.thumbnail, alignItems: 'center', justifyContent: 'center' },
   dayText: { fontSize: 14, fontWeight: '600', color: Palette.text },
   today: { borderWidth: 1, borderColor: Palette.accent },

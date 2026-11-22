@@ -11,7 +11,7 @@ import { RecoveredExerciseDraft } from '@/components/exercise-draft-context';
 import { Action, Chips, ErrorText, Screen, ui } from '@/components/tracker-ui';
 import { Palette, Radius } from '@/constants/theme';
 import { exerciseDraftKey, type ExerciseDraft, type ExercisePhoto } from '@/data/exercise-draft';
-import { exerciseIcons, type ExerciseIcon } from '@/data/exercises';
+import { defaultExerciseIcons, exerciseIcons, type ExerciseIcon } from '@/data/exercises';
 import { useWorkouts } from '@/data/workout-store';
 import { equipmentLabels, equipmentTypes, type EquipmentType } from '@/data/workouts';
 
@@ -33,13 +33,15 @@ function CreateExerciseForm({ draft }: { draft: ExerciseDraft | null }) {
   const [equipment, setEquipment] = useState<EquipmentType>(draft?.equipment ?? 'free_weight');
   const [muscle, setMuscle] = useState(draft?.muscle ?? '');
   const [description, setDescription] = useState(draft?.description ?? '');
-  const [icon, setIcon] = useState<ExerciseIcon>(draft?.icon ?? 'dumbbell');
+  const [iconOverride, setIconOverride] = useState<ExerciseIcon | undefined>(draft?.icon);
   const [photo, setPhoto] = useState<ExercisePhoto | undefined>(draft?.photo);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState(draft?.photoError ?? '');
   const busy = useRef(false);
+
+  const icon = iconOverride ?? defaultExerciseIcons[equipment];
 
   useEffect(() => {
     if (draft) void Storage.removeItem(exerciseDraftKey).catch(() => undefined);
@@ -53,7 +55,7 @@ function CreateExerciseForm({ draft }: { draft: ExerciseDraft | null }) {
     let checkpointSaved = false;
     try {
       if (process.env.EXPO_OS === 'android') {
-        const checkpoint: ExerciseDraft = { id, name, equipment, muscle, description, icon, photo };
+        const checkpoint: ExerciseDraft = { id, name, equipment, muscle, description, icon: iconOverride, photo };
         await Storage.setItem(exerciseDraftKey, JSON.stringify(checkpoint));
         checkpointSaved = true;
       }
@@ -145,7 +147,7 @@ function CreateExerciseForm({ draft }: { draft: ExerciseDraft | null }) {
               return (
                 <Pressable key={value} accessibilityRole="button" accessibilityLabel={`${label} icon`}
                   accessibilityState={{ selected }} disabled={saving || picking}
-                  onPress={() => { setIcon(value); setPhoto(undefined); setError(''); }}
+                  onPress={() => { setIconOverride(value); setPhoto(undefined); setError(''); }}
                   style={[styles.iconOption, selected && styles.selected]}>
                   <ExerciseThumbnail equipment={equipment} imageUri={`icon:${value}`} size={36} />
                 </Pressable>

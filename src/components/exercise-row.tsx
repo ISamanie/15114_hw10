@@ -4,22 +4,22 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Palette, Radius } from '@/constants/theme';
-import { exerciseIcons, type ExerciseIcon } from '@/data/exercises';
+import { defaultExerciseIcons, exerciseIcons, type ExerciseIcon } from '@/data/exercises';
 import { equipmentLabels, type EquipmentType, type Exercise } from '@/data/workouts';
 import { Icon } from './tracker-icon';
 import { ui } from './tracker-ui';
 
 const thumbnails = {
-  free_weight: { background: Palette.mint, ink: Palette.accentText, icon: 'dumbbell' },
-  machine: { background: Palette.blueTint, ink: Palette.blueInk, icon: 'machine' },
-  bodyweight: { background: Palette.violetTint, ink: Palette.violetInk, icon: 'body' },
+  free_weight: { background: Palette.mint, ink: Palette.accentText },
+  machine: { background: Palette.blueTint, ink: Palette.blueInk },
+  bodyweight: { background: Palette.violetTint, ink: Palette.violetInk },
 } as const;
 
 export function ExerciseThumbnail({ equipment, imageUri, size = 48 }: { equipment: EquipmentType; imageUri: string; size?: number }) {
   const [failedUri, setFailedUri] = useState<string>();
   const theme = thumbnails[equipment];
   const candidate = imageUri.slice(5) as ExerciseIcon;
-  const icon = imageUri.startsWith('icon:') && Object.hasOwn(exerciseIcons, candidate) ? candidate : theme.icon;
+  const icon = imageUri.startsWith('icon:') && Object.hasOwn(exerciseIcons, candidate) ? candidate : defaultExerciseIcons[equipment];
   const uri = imageUri.startsWith('photo:') ? new File(Paths.document, imageUri.slice(6)).uri : imageUri;
   const showImage = !!uri && !imageUri.startsWith('icon:') && failedUri !== uri;
 
